@@ -113,7 +113,7 @@ static void ultrasonic_soft(void *arg) {
     };
     esp_task_wdt_init(&wdt_config);
 
-    uint8_t data[10];
+    // uint8_t data[10];
     esp_task_wdt_add(NULL);
     while (true)
     {
