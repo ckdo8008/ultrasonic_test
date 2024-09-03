@@ -166,9 +166,6 @@ static void send_data(void *arg) {
 
 void app_main(void)
 {
-    // xTaskCreatePinnedToCore(ultrasonic_soft, "uart_echo_task1", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL, 1);
-    // xTaskCreatePinnedToCore(ultrasonic_hw, "uart_echo_task2", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL, 0);
-    // xTaskCreatePinnedToCore(send_data, "send_data", 1024 * 2, NULL, configMAX_PRIORITIES - 2, NULL, 0);
     xTaskCreate(ultrasonic_soft, "uart_echo_task1", 1024 * 2, NULL, configMAX_PRIORITIES - 3, NULL);
     xTaskCreate(ultrasonic_hw, "uart_echo_task2", 1024 * 2, NULL, configMAX_PRIORITIES - 2, NULL);
     xTaskCreate(send_data, "send_data", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
