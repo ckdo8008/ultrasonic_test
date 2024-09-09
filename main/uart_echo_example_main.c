@@ -9,13 +9,13 @@
 #include "sw_serial.h"
 #include "esp_task_wdt.h"
 
-#define RX00 27
-#define TX00 5
-#define RX01 14
-#define TX01 18
-#define RX02 26
-#define TX02 19
-#define RX03 13
+#define RX00 3
+#define TX00 4
+#define RX01 5
+#define TX01 6
+#define RX02 7
+#define TX02 10
+#define RX03 20
 #define TX03 21
 
 static const char *TAG = "UART_Left";
@@ -145,7 +145,6 @@ static void ultrasonic_hw(void *arg){
 }
 
 static void send_data(void *arg) {
-
     TickType_t xLastWakeTime;
     xLastWakeTime = xTaskGetTickCount();
     esp_task_wdt_config_t wdt_config = {

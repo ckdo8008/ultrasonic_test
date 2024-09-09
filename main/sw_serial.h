@@ -78,7 +78,7 @@ uint32_t getCycleCount()
 }
 
 #define WaitBitTime(wait) \
-    for (uint32_t start = getCycleCount(); getCycleCount() - start < wait;)
+    for (uint32_t start = getCycleCount(); getCycleCount() - start < wait;){}
 
 static void IRAM_ATTR sw_rx_handler(void *args)
 {
