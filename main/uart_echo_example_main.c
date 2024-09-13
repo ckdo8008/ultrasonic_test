@@ -21,11 +21,22 @@
 static const char *TAG = "UART_Left";
 
 #define BUF_SIZE (1024)
+#define ALPHA 0.1  // 필터 상수 (0과 1 사이)
 
 static volatile int32_t iRange00 = -1;
 static volatile int32_t iRange01 = -1;
 static volatile int32_t iRange02 = -1;
 static volatile int32_t iRange03 = -1;
+
+static volatile int32_t iRange00_lpf = -1;
+static volatile int32_t iRange01_lpf = -1;
+static volatile int32_t iRange02_lpf = -1;
+static volatile int32_t iRange03_lpf = -1;
+
+static volatile bool sensor00_fault = false;
+static volatile bool sensor01_fault = false;
+static volatile bool sensor02_fault = false;
+static volatile bool sensor03_fault = false;
 
 uart_config_t uart_config = {
     .baud_rate = 9600,
@@ -35,6 +46,13 @@ uart_config_t uart_config = {
     .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
     .source_clk = UART_SCLK_DEFAULT,
 };
+
+int32_t apply_lpf(int32_t previous_value, int32_t current_value) {
+    if (previous_value == -1) {
+        return current_value;
+    }
+    return (int32_t)(ALPHA * current_value + (1 - ALPHA) * previous_value);
+}
 
 int32_t soft_range(gpio_num_t Tx, gpio_num_t Rx) {
     int32_t ret = -1;
@@ -118,9 +136,32 @@ static void ultrasonic_soft(void *arg) {
     while (true)
     {
         esp_task_wdt_reset();
-        iRange00 = soft_range(TX00, RX00);
+        // iRange00 = soft_range(TX00, RX00);
+        int32_t raw_range00 = soft_range(TX00, RX00);
+        if (raw_range00 == -1) {
+            if (sensor00_fault) {
+                iRange00_lpf = -1;
+                iRange00 = iRange00_lpf;
+            }
+            sensor00_fault = true;            
+        } else {
+            iRange00_lpf = apply_lpf(iRange00_lpf, raw_range00);
+            iRange00 = iRange00_lpf;
+        }
+        // ESP_LOGI(TAG, "%ld,%ld", iRange00, raw_range00);
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(70));
-        iRange01 = soft_range(TX01, RX01);
+        // iRange01 = soft_range(TX01, RX01);
+        int32_t raw_range01 = soft_range(TX01, RX01);
+        if (raw_range01 == -1) {
+            if (sensor01_fault) {
+                iRange01_lpf = -1;
+                iRange01 = iRange01_lpf;
+            }
+            sensor01_fault = true;            
+        } else {
+            iRange01_lpf = apply_lpf(iRange01_lpf, raw_range01);
+            iRange01 = iRange01_lpf;
+        }
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(70));
     }
 }
@@ -137,9 +178,31 @@ static void ultrasonic_hw(void *arg){
     esp_task_wdt_add(NULL);
     while (1) {
         esp_task_wdt_reset();
-        iRange02 = hw_range(TX02, RX02);
+        // iRange02 = hw_range(TX02, RX02);
+        int32_t raw_range02 = hw_range(TX02, RX02);
+        if (raw_range02 == -1) {
+            if (sensor02_fault) {
+                iRange02_lpf = -1;
+                iRange02 = iRange02_lpf;
+            }
+            sensor02_fault = true;            
+        } else {
+            iRange02_lpf = apply_lpf(iRange02_lpf, raw_range02);
+            iRange02 = iRange02_lpf;
+        }
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(70));
-        iRange03 = hw_range(TX03, RX03);
+        // iRange03 = hw_range(TX03, RX03);
+        int32_t raw_range03 = hw_range(TX03, RX03);
+        if (raw_range03 == -1) {
+            if (sensor03_fault) {
+                iRange03_lpf = -1;
+                iRange03 = iRange03_lpf;
+            }
+            sensor03_fault = true;            
+        } else {
+            iRange03_lpf = apply_lpf(iRange03_lpf, raw_range03);
+            iRange03 = iRange03_lpf;
+        }        
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(70));
     }
 }
