@@ -213,11 +213,6 @@ static void ultrasonic_hw(void *arg){
 
 static void send_data(void *arg) {
     TickType_t xLastWakeTime;
-    int error_count00 = 0;
-    int error_count01 = 0;
-    int error_count02 = 0;
-    int error_count03 = 0;    
-
     xLastWakeTime = xTaskGetTickCount();
     esp_task_wdt_config_t wdt_config = {
         .timeout_ms = 1000,        // 타임아웃 1초 설정
@@ -231,23 +226,6 @@ static void send_data(void *arg) {
     {
         esp_task_wdt_reset();
         ESP_LOGI(TAG, "%ld,%ld,%ld,%ld", iRange00, iRange01, iRange02, iRange03);
-
-        if (error_count00 >= 5 || error_count01 >= 5 || error_count02 >= 5 || error_count03 >= 5) {
-            esp_restart();
-        }
-
-        if (iRange00 == -1) error_count00++;
-        else error_count00 = 0;
-
-        if (iRange01 == -1) error_count01++;
-        else error_count01 = 0;
-
-        if (iRange02 == -1) error_count02++;
-        else error_count02 = 0;
-
-        if (iRange03 == -1) error_count03++;
-        else error_count03 = 0;
-
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(110));
     }
 }
