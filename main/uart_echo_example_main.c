@@ -21,7 +21,7 @@
 static const char *TAG = "UART_Left";
 
 #define BUF_SIZE (1024)
-#define ALPHA 0.1  // 필터 상수 (0과 1 사이)
+#define ALPHA 0.3  // 필터 상수 (0과 1 사이)
 
 static volatile int32_t iRange00 = -1;
 static volatile int32_t iRange01 = -1;
@@ -71,7 +71,7 @@ int32_t soft_range(gpio_num_t Tx, gpio_num_t Rx) {
         if (len == 4 && data[0] == 0xff ) {
             if (data[3] == ((0xff + data[1] + data[2]) & 0xFF)) {
                 ret = (data[1] << 8) | data[2];
-                if (ret == 0) ret = -1;
+                if (ret == 0) ret = 6000;
             }
             else {
                 ret = -1;
@@ -108,7 +108,7 @@ int32_t hw_range(gpio_num_t Tx, gpio_num_t Rx) {
     if (len == 4 && data[0] == 0xff ) {
         if (data[3] == ((0xff + data[1] + data[2]) & 0xFF)) {
             ret = (data[1] << 8) | data[2];
-            if (ret == 0) ret = -1;
+            if (ret == 0) ret = 6000;
         }
         else {
             ret = -1;
@@ -137,6 +137,7 @@ static void ultrasonic_soft(void *arg) {
     {
         esp_task_wdt_reset();
         // iRange00 = soft_range(TX00, RX00);
+        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(40));
         int32_t raw_range00 = soft_range(TX00, RX00);
         if (raw_range00 == -1) {
             if (sensor00_fault) {
@@ -150,6 +151,7 @@ static void ultrasonic_soft(void *arg) {
         }
         // ESP_LOGI(TAG, "%ld,%ld", iRange00, raw_range00);
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(70));
+        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(40));
         // iRange01 = soft_range(TX01, RX01);
         int32_t raw_range01 = soft_range(TX01, RX01);
         if (raw_range01 == -1) {
@@ -191,6 +193,7 @@ static void ultrasonic_hw(void *arg){
             iRange02 = iRange02_lpf;
         }
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(70));
+        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(40));
         // iRange03 = hw_range(TX03, RX03);
         int32_t raw_range03 = hw_range(TX03, RX03);
         if (raw_range03 == -1) {
@@ -204,11 +207,17 @@ static void ultrasonic_hw(void *arg){
             iRange03 = iRange03_lpf;
         }        
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(70));
+        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(40));
     }
 }
 
 static void send_data(void *arg) {
     TickType_t xLastWakeTime;
+    int error_count00 = 0;
+    int error_count01 = 0;
+    int error_count02 = 0;
+    int error_count03 = 0;    
+
     xLastWakeTime = xTaskGetTickCount();
     esp_task_wdt_config_t wdt_config = {
         .timeout_ms = 1000,        // 타임아웃 1초 설정
@@ -222,7 +231,24 @@ static void send_data(void *arg) {
     {
         esp_task_wdt_reset();
         ESP_LOGI(TAG, "%ld,%ld,%ld,%ld", iRange00, iRange01, iRange02, iRange03);
-        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(140));
+
+        if (error_count00 >= 5 || error_count01 >= 5 || error_count02 >= 5 || error_count03 >= 5) {
+            esp_restart();
+        }
+
+        if (iRange00 == -1) error_count00++;
+        else error_count00 = 0;
+
+        if (iRange01 == -1) error_count01++;
+        else error_count01 = 0;
+
+        if (iRange02 == -1) error_count02++;
+        else error_count02 = 0;
+
+        if (iRange03 == -1) error_count03++;
+        else error_count03 = 0;
+
+        vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(110));
     }
 }
 
