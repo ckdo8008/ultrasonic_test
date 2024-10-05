@@ -18,7 +18,7 @@
 #define RX03 20
 #define TX03 21
 
-static const char *TAG = "UART_Left";
+static const char *TAG = "UART_Right";
 
 #define BUF_SIZE (1024)
 #define ALPHA 0.3  // 필터 상수 (0과 1 사이)
