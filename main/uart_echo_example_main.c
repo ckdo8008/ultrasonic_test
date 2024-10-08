@@ -61,7 +61,7 @@ int32_t soft_range(gpio_num_t Tx, gpio_num_t Rx) {
     sw_open(tmp, 9600);
     sw_flush(tmp);
     sw_write(tmp, (uint8_t)0x55);
-    vTaskDelay(60 / portTICK_PERIOD_MS);
+    vTaskDelay(61 / portTICK_PERIOD_MS);
     int len = sw_any(tmp);
     if (len == 4) {
         for (size_t i = 0; i < len; i++)
@@ -103,7 +103,7 @@ int32_t hw_range(gpio_num_t Tx, gpio_num_t Rx) {
 
     uart_flush(UART_NUM_1);
     uart_write_bytes(UART_NUM_1, (char *)senddata, 1);
-    vTaskDelay(60 / portTICK_PERIOD_MS);
+    vTaskDelay(61 / portTICK_PERIOD_MS);
     len = uart_read_bytes(UART_NUM_1, data, 10, 10 / portTICK_PERIOD_MS);
     if (len == 4 && data[0] == 0xff ) {
         if (data[3] == ((0xff + data[1] + data[2]) & 0xFF)) {
