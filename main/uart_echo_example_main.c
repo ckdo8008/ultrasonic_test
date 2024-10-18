@@ -55,13 +55,17 @@ int32_t apply_lpf(int32_t previous_value, int32_t current_value) {
 }
 
 int32_t soft_range(gpio_num_t Tx, gpio_num_t Rx) {
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();    
     int32_t ret = -1;
     SwSerial *tmp = sw_new(Tx, Rx, false, 128);
     uint8_t data[4];
     sw_open(tmp, 9600);
+    sw_write(tmp, (uint8_t)0x00);
     sw_flush(tmp);
     sw_write(tmp, (uint8_t)0x55);
-    vTaskDelay(61 / portTICK_PERIOD_MS);
+    // vTaskDelay(61 / portTICK_PERIOD_MS);
+    vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(61));
     int len = sw_any(tmp);
     if (len == 4) {
         for (size_t i = 0; i < len; i++)
@@ -90,20 +94,24 @@ int32_t soft_range(gpio_num_t Tx, gpio_num_t Rx) {
 }
 
 int32_t hw_range(gpio_num_t Tx, gpio_num_t Rx) {
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
     int32_t ret = -1;
     int intr_alloc_flags = 0;
     uint8_t data[10];
+    uint8_t senddataNull[1];
     uint8_t senddata[1];
+    senddataNull[0] = 0x00;
     senddata[0] = 0x55;
     int len = 0;
-
     uart_driver_install(UART_NUM_1, BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags);
     uart_param_config(UART_NUM_1, &uart_config);
     uart_set_pin(UART_NUM_1, Tx, Rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-
+    uart_write_bytes(UART_NUM_1, (char *)senddataNull, 1);
     uart_flush(UART_NUM_1);
     uart_write_bytes(UART_NUM_1, (char *)senddata, 1);
-    vTaskDelay(61 / portTICK_PERIOD_MS);
+    // vTaskDelay(61 / portTICK_PERIOD_MS);
+    vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(61));
     len = uart_read_bytes(UART_NUM_1, data, 10, 10 / portTICK_PERIOD_MS);
     if (len == 4 && data[0] == 0xff ) {
         if (data[3] == ((0xff + data[1] + data[2]) & 0xFF)) {
@@ -118,6 +126,8 @@ int32_t hw_range(gpio_num_t Tx, gpio_num_t Rx) {
         ret = -1;
     }
     uart_driver_delete(UART_NUM_1);
+    gpio_reset_pin(Tx);
+    // gpio_reset_pin(Rx);    
     return ret;
 }
 
@@ -139,6 +149,7 @@ static void ultrasonic_soft(void *arg) {
         // iRange00 = soft_range(TX00, RX00);
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(65));
         int32_t raw_range00 = soft_range(TX00, RX00);
+        // ESP_LOGI(TAG, "raw_range00 : %ld", raw_range00);
         if (raw_range00 == -1) {
             if (sensor00_fault) {
                 iRange00_lpf = -1;
@@ -151,10 +162,12 @@ static void ultrasonic_soft(void *arg) {
             sensor00_fault = false; 
         }
         // ESP_LOGI(TAG, "%ld,%ld", iRange00, raw_range00);
+
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(65));
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(65));
         // iRange01 = soft_range(TX01, RX01);
         int32_t raw_range01 = soft_range(TX01, RX01);
+        // ESP_LOGI(TAG, "raw_range01 : %ld", raw_range01);
         if (raw_range01 == -1) {
             if (sensor01_fault) {
                 iRange01_lpf = -1;
@@ -167,6 +180,7 @@ static void ultrasonic_soft(void *arg) {
             sensor01_fault = false;
         }
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(65));
+        // ESP_LOGI(TAG, "111111111111111111111111111111111");
     }
 }
 
@@ -180,10 +194,12 @@ static void ultrasonic_hw(void *arg){
     };
     esp_task_wdt_init(&wdt_config);
     esp_task_wdt_add(NULL);
+    vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(10));
     while (1) {
         esp_task_wdt_reset();
         // iRange02 = hw_range(TX02, RX02);
         int32_t raw_range02 = hw_range(TX02, RX02);
+        // ESP_LOGI(TAG, "raw_range02 : %ld", raw_range02);
         if (raw_range02 == -1) {
             if (sensor02_fault) {
                 iRange02_lpf = -1;
@@ -199,6 +215,7 @@ static void ultrasonic_hw(void *arg){
         vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(65));
         // iRange03 = hw_range(TX03, RX03);
         int32_t raw_range03 = hw_range(TX03, RX03);
+        // ESP_LOGI(TAG, "raw_range03 : %ld", raw_range03);
         if (raw_range03 == -1) {
             if (sensor03_fault) {
                 iRange03_lpf = -1;
@@ -236,7 +253,11 @@ static void send_data(void *arg) {
 
 void app_main(void)
 {
-    xTaskCreate(ultrasonic_soft, "uart_echo_task1", 1024 * 2, NULL, configMAX_PRIORITIES - 3, NULL);
-    xTaskCreate(ultrasonic_hw, "uart_echo_task2", 1024 * 2, NULL, configMAX_PRIORITIES - 2, NULL);
+    TickType_t xLastWakeTime;
+    xLastWakeTime = xTaskGetTickCount();
+    vTaskDelayUntil( &xLastWakeTime, pdMS_TO_TICKS(100));
+    esp_log_level_set("gpio", ESP_LOG_WARN);
+    xTaskCreate(ultrasonic_soft, "uart_echo_task1", 1024 * 2, NULL, configMAX_PRIORITIES - 2, NULL);
+    xTaskCreate(ultrasonic_hw, "uart_echo_task2", 1024 * 2, NULL, configMAX_PRIORITIES - 3, NULL);
     xTaskCreate(send_data, "send_data", 1024 * 2, NULL, configMAX_PRIORITIES - 1, NULL);
 }
